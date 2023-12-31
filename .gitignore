@@ -1,0 +1,5 @@
+# Anything in this directory that is HTML can be regenerated.
+*.html
+
+# Additionally, anything that matches *.txt is an intermediate file.
+*.txt

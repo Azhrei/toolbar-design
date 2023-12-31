@@ -1,0 +1,69 @@
+
+= Overview =
+
+This is an attempt to document how tools in the toolbar should be designed so
+that they are accessible, scalable, and extendable.
+
+== Class Diagram ==
+
+Text block 1.
+
+[plantuml, toolbar-overview]
+....
+interface ToolPlugin extends Bean {
+    +mouseClick(ev: MouseEvent): void
+    +keyPress(ev: KeyEvent): void
+}
+
+class PointerTool implements ToolPlugin {
+}
+
+class MeasuringTool extends PointerTool {
+}
+
+interface MapToolHook {
+    +eventListener(tool: Tool, ev: Event): boolean
+    +grabEvents(): void
+    +getInstance(): MapToolHook
+}
+
+ToolPlugin -[uses]- MapToolHook
+
+' Put all subclasses of DrawingTool into a 'package'
+package DrawingTool {
+    class DrawingTool implements ToolPlugin {
+    }
+
+    class CircleTool implements DrawingTool {
+    }
+
+    class PolygonTool implements DrawingTool {
+    }
+
+    class RectangleTool implements DrawingTool {
+    }
+
+    class LineTool implements DrawingTool {
+    }
+}
+
+' Put all subclasses of TemplateTool into a 'package'
+package TemplateTool {
+    class TemplateTool implements ToolPlugin {
+    }
+
+    class ConeTool implements TemplateTool {
+    }
+
+    class CircleTool implements TemplateTool {
+    }
+
+    class RectangleTool implements TemplateTool {
+    }
+
+    class LineTool implements TemplateTool {
+    }
+}
+....
+
+Text block 2.
