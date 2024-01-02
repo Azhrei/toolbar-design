@@ -1,6 +1,6 @@
 // vi:set tw=0 et sts=4 sw=4:
 
-= Overview =
+= Overview - v1.1 =
 
 This is an attempt to document how tools in the toolbar should be designed so
 that they are accessible, scalable, and extendable.
@@ -14,29 +14,65 @@ This allows for an automated and consistent UI where users can define the defaul
 
 It also shows the measurement tool being a subclass of the pointer tool.
 In the final design, this may or may not be the case -- there is some overlapping functionality between the two, but whether they should be related is a separate question that this document is not attempting to answer.
+It is displayed this way only to demonstrate the structure.
 
 Note that the `ToolPlugin` provides methods for supporting the operations of the various tools.
-Again, this is merely for demonstration purposes; a completely different design may end up being chosen.
+Again, this is merely for discussion purposes; a completely different design may end up being chosen.
+
+Many of the methods shown in these sample classes return `void`.
+It is expected that the various plugins will use exceptions when errors occur and the plugin architecture within MapTool to catch all exceptions.
+
+I'm not sure how the plugins should be "activated" when the user selects a toolbar icon.
+On one hand, the tool could "grab" the mouse and keyboard so that all input events go through the tool.
+That provides maximum flexibility for the tool and the ability to use any keystroke, mouse, or gesture activity as it wishes.
+This might be good for accessibility as users could set these values as they want.
+
+On the other hand, blocking events from the rest of MapTool seems extreme.
+The tools will need to register for events in a way that might prevent them from being delivered to other components.
+Again, I'm not sure about this, but it seems that perhaps menu options or macro buttons shouldn't be available while drawing a template...?
+Or perhaps input events are registered in a "stack" and the various tools add their own listeners on top of that stack.
+When the tool is done, those listeners are "popped" off of that stack.
+Perhaps this is done by the Zone implementing the stack?
+That allows other parts of the UI to still be used (like menu options), but those actions should probably terminate any active tool when they are invoked.
+
+One aspect that this document doesn't address yet is _undo_/_redo_ capability.
+It's critical that the typical undo ability work properly in this regard.
+(It's been broken since the very early days and Sun's `UndoManager` doesn't make it easy to fix.)
+The obvious undo/redo design would be to implement the _Command_ pattern and keep a stack of those objects.
+So while undo/redo isn't explicitly discussed herein (yet), keep in mind that the completion of any given tool should generate a _Command_ object that is pushed onto a stack that MapTool is maintaining.
 
 [plantuml, toolbar-overview]
 ....
 title "Toolbar Overview"
 
 interface ToolPlugin extends Bean {
-    +mouseClicked(ev: MouseEvent): void
-    +keyPressed(ev: KeyEvent): void
+    +start(): void
+    ..Static Methods..
+    + {static} _registerShortcuts(keys: Map<String, Function>): void
+    + {static} _registerMouseListeners(): void
+    + {static} _registerKeyListeners(): void
 }
 
+note left of ToolPlugin::start
+  delegates parts of the initialization to
+  other methods so that pieces of the startup
+  can be overridden without overriding everything
+end note
+
 class PointerTool implements ToolPlugin {
+    +start(): void
+    ..Implementation..
+    #registerShortcuts(keys: Map<String, Function>): void
+    #registerMouseListeners(): void
+    #registerKeyListeners(): void
 }
 
 class MeasuringTool extends PointerTool {
 }
 
 interface MapToolHook {
-    +eventListener(tool: Tool, ev: Event): boolean
-    +grabEvents(): void
     +getInstance(): MapToolHook
+    +addEventListener(tool: ToolPlugin, ev: Event): void
 }
 
 ToolPlugin -- MapToolHook : uses
@@ -72,9 +108,41 @@ title "Toolbar - Drawing"
 
 interface ToolPlugin
 
+package Utils {
+    interface PenType {
+        ~rotate(): PenType
+        ~scale(): PenType
+    }
+    abstract class Color implements PenType {
+        ~rotate(): Color
+        ~scale(): Color
+    }
+    abstract class Texture implements PenType {
+        ~rotate(): Texture
+        ~scale(): Texture
+    }
+}
+
 package Drawing {
     class DrawingTool implements .ToolPlugin {
+        +start(): void
+        ..Palette-related Methods..
+        #showFillPicker(): PenType
+        #showStrokePicker(): PenType
+        #setFill(p: PenType): void
+        #setStroke(p: PenType): void
+        ..Texture Scaling/Rotating..
+        #getCurrentPen(): PenType
     }
+
+    note left of DrawingTool::getCurrentPen
+      rotating or scaling ""Texture""s is done
+      by retrieving the ""PenType"" and
+      calling the associated method;
+      non-""Texture""s ignore those calls
+    end note
+
+    DrawingTool::showFillPicker -- .Utils.PenType : uses
 
     package Drawing.Implementation as "Imnplementation (PF1e)" {
 	class CircleTool implements Drawing.DrawingTool {
@@ -106,25 +174,61 @@ title "Toolbar - Template"
 
 interface ToolPlugin
 
+package Utils {
+    interface PenType
+    abstract class Color implements PenType
+    abstract class Texture implements PenType
+}
+
 package Template {
     class TemplateTool implements .ToolPlugin {
+        +start(): void
+        +group(): String
+        +tooltip(): String
+        +statusBar(): String
+        +helpLink(): String
+        ..Palette-related Methods..
+        #showFillPicker(): PenType
+        #showStrokePicker(): PenType
+        #setFill(p: PenType): void
+        #setStroke(p: PenType): void
+        ..Texture Scaling/Rotating..
+        #getCurrentPen(): PenType
     }
+
+    note left of TemplateTool
+      looks like an almost identical API
+      compared to ""DrawingTool"" -- refactor?
+    end note
+
+    TemplateTool::showFillPicker -- .Utils.PenType : uses
 
     package Template.Implementation as "Implementation (D&D 5e)" {
 	class ConeTool implements Template.TemplateTool {
+            +group(): "D&D 5e"
 	}
 
 	class CircleTool implements Template.TemplateTool {
+            +group(): "D&D 5e"
 	}
 
 	class RectangleTool implements Template.TemplateTool {
+            +group(): "D&D 5e"
 	}
 
 	class LineTool implements Template.TemplateTool {
+            +group(): "D&D 5e"
 	}
     }
+
+    note bottom of Template.Implementation
+      may be useful to subclass ""TemplateTool"" to give
+      all "D&D 5e" a single superclass, since ""group()""
+      and similar methods will be identical
+    end note
 }
 ....
 
 The `Template` component works analagous to how the `Drawing` component works.
-
+It does have additional methods, as it needs to declare which game system the template is designed for, along with tooltip hints and so on.
+A lot of the the other methods are shared with the `Drawing` family of tools, so should likely be factored out as long as there is a common implementation.
