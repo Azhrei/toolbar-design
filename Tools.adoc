@@ -1,18 +1,30 @@
+// vi:set tw=0 et sts=4 sw=4:
 
 = Overview =
 
 This is an attempt to document how tools in the toolbar should be designed so
 that they are accessible, scalable, and extendable.
 
-== Class Diagram ==
+== Class Diagrams ==
 
-Text block 1.
+This first diagram provides an overview of how this redesign might progress.
+
+It shows that all drawings and templates will be implemented as JavaBeans.
+This allows for an automated and consistent UI where users can define the defaults of each tool without any coding being necessary.
+
+It also shows the measurement tool being a subclass of the pointer tool.
+In the final design, this may or may not be the case -- there is some overlapping functionality between the two, but whether they should be related is a separate question that this document is not attempting to answer.
+
+Note that the `ToolPlugin` provides methods for supporting the operations of the various tools.
+Again, this is merely for demonstration purposes; a completely different design may end up being chosen.
 
 [plantuml, toolbar-overview]
 ....
+title "Toolbar Overview"
+
 interface ToolPlugin extends Bean {
-    +mouseClick(ev: MouseEvent): void
-    +keyPress(ev: KeyEvent): void
+    +mouseClicked(ev: MouseEvent): void
+    +keyPressed(ev: KeyEvent): void
 }
 
 class PointerTool implements ToolPlugin {
@@ -27,43 +39,92 @@ interface MapToolHook {
     +getInstance(): MapToolHook
 }
 
-ToolPlugin -[uses]- MapToolHook
+ToolPlugin -- MapToolHook : uses
+....
 
-' Put all subclasses of DrawingTool into a 'package'
-package DrawingTool {
-    class DrawingTool implements ToolPlugin {
+The diagrams below show how an actual implementation will likely be
+structured.
+Essentially, a plugin will include one or more tool implementations.
+Plugins can be loaded dynamically and add themselves to a named group, or the user can assign a given plugin name to a given group.
+Groups will be used to make quick and easy changes to the toolbar.
+
+For example, five plugins for templates could be loaded.
+They could self-assign themselves to the "D&D 5e" group.
+(Such a group will be created if it doesn't already exist.)
+Then the user can select that group to appear in the toolbar.
+However, the user could also load template plugins from an alternate source and manually assign that template to the same group.
+(Or, they could choose not to assign it to the "D&D 5e" group, but simply drag
+and drop it to the toolbar.)
+
+The distinction between using a group is both use-based and implementation based.
+Groups are likely to be used together, so it should be easy for the user to select the group they way.
+However, house rules may cause a GM to vary from a given implementation.
+They may find that the implementation of a given template from a different
+game system matches their interpretation more closely.
+
+When templates are added automatically to a group, if the user has selected the contents of the group for the toolbar, those additions should automatically be added.
+In other words, selecting a group means new updates automatically appear.
+If individual templates are added to the toolbar, when other templates within that template group are updated, they will not automatically be added to the toolbar.
+
+[plantuml, toolbar-drawings]
+....
+title "Toolbar - Drawing"
+
+interface ToolPlugin
+
+package Drawing {
+    class DrawingTool implements .ToolPlugin {
     }
 
-    class CircleTool implements DrawingTool {
-    }
+    package Drawing.Implementation as "Imnplementation (PF1e)" {
+	class CircleTool implements Drawing.DrawingTool {
+	}
 
-    class PolygonTool implements DrawingTool {
-    }
+	class PolygonTool implements Drawing.DrawingTool {
+	}
 
-    class RectangleTool implements DrawingTool {
-    }
+	class RectangleTool implements Drawing.DrawingTool {
+	}
 
-    class LineTool implements DrawingTool {
-    }
-}
-
-' Put all subclasses of TemplateTool into a 'package'
-package TemplateTool {
-    class TemplateTool implements ToolPlugin {
-    }
-
-    class ConeTool implements TemplateTool {
-    }
-
-    class CircleTool implements TemplateTool {
-    }
-
-    class RectangleTool implements TemplateTool {
-    }
-
-    class LineTool implements TemplateTool {
+	class LineTool implements Drawing.DrawingTool {
+	}
     }
 }
 ....
 
-Text block 2.
+The idea is that any new plugins that want to implementation a new type of `Drawing` will create their own "implementation" component which subclasses `DrawingTool`.
+It's likely that all drawings that support a particular type of map will be in a single implementation (for example, forest scenes might all be in one component).
+That is not required at all, but it makes sense to implement them within a group as the `Drawing` groups will be added to the toolbar as described above.
+
+It is not required that all classes in an implementation component be directly
+inherited from `DrawingTool`, though.
+It's certainly possible (and even likely) for there to be one or more abstract classes within the implementation component that actual implementation classes would subclass.
+
+[plantuml, toolbar-templates]
+....
+title "Toolbar - Template"
+
+interface ToolPlugin
+
+package Template {
+    class TemplateTool implements .ToolPlugin {
+    }
+
+    package Template.Implementation as "Implementation (D&D 5e)" {
+	class ConeTool implements Template.TemplateTool {
+	}
+
+	class CircleTool implements Template.TemplateTool {
+	}
+
+	class RectangleTool implements Template.TemplateTool {
+	}
+
+	class LineTool implements Template.TemplateTool {
+	}
+    }
+}
+....
+
+The `Template` component works analagous to how the `Drawing` component works.
+

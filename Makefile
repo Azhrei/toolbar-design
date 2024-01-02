@@ -10,4 +10,4 @@ upload: all
 	#ppp-update
 
 clean:
-	rm -rf $(ADOC:.adoc=.html) $(MD:.md=.html) *.svg *.txt
+	rm -rf $(ADOC:.adoc=.html) $(MD:.md=.html) *.svg *.txt *.pdf
