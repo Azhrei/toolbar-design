@@ -68,7 +68,7 @@ So while undo/redo isn't explicitly discussed herein (yet), keep in mind that th
 // When we're executing `asciidoc` locally, include the PlantUML stuff.
 // When we're displaying it on GitHub, refer to the prepared images.
 ifndef::PLANTUML[]
-image::toolbar-overview[Overview]
+image::https://raw.github.com/Azhrei/toolbar-design/main/toolbar-overview.svg[Overview]
 endif::PLANTUML[]
 ifdef::PLANTUML[]
 [plantuml, toolbar-overview]
@@ -134,7 +134,7 @@ In other words, selecting a group means new updates automatically appear.
 If individual templates are added to the toolbar, when other templates within that template group are updated, they will not automatically be added to the toolbar.
 
 ifndef::PLANTUML[]
-image::toolbar-drawings[Drawing Package]
+image::https://raw.github.com/Azhrei/toolbar-design/main/toolbar-drawings.svg[Drawing Package]
 endif::PLANTUML[]
 ifdef::PLANTUML[]
 [plantuml, toolbar-drawings]
@@ -205,7 +205,7 @@ inherited from `DrawingTool`, though.
 It's certainly possible (and even likely) for there to be one or more abstract classes within the implementation component that actual implementation classes would subclass.
 
 ifndef::PLANTUML[]
-image::toolbar-templates[Template Package]
+image::https://raw.github.com/Azhrei/toolbar-design/main/toolbar-templates.svg[Template Package]
 endif::PLANTUML[]
 ifdef::PLANTUML[]
 [plantuml, toolbar-templates]
