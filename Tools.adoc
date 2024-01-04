@@ -2,8 +2,32 @@
 
 = Overview - v1.1 =
 
-This is an attempt to document how tools in the toolbar should be designed so
-that they are accessible, scalable, and extendable.
+This is a work-in-progress for documenting how tools in the toolbar should be designed so that they are accessible (color choices, minimal flashing & animation, configurable events), scalable (GM can choose any number of tools from a palette of those available no matter how many), and extendable (new templates require a minimal of coding and no changes to MapTool code).
+
+== Document TODO ==
+
+. 🔲 Add example(s) of https://en.wikipedia.org/wiki/Prototype_pattern:[Prototype pattern] to `ToolPlugin`.
+. 🔲 Add methods for https://en.wikipedia.org/wiki/Memento_pattern[Memento pattern] to `ToolPlugin`.
+. 🔲 Add notes about how a generic Bean editing API will change the state on either:
+.. The prototype object (thus changing defaults for future instances), or
+.. The active instance (changing the defaults just for the drawing/template under construction).
+. 🔲 Templates should typically snap to grid intersections or grid cells:
+.. Gridless maps will (obviously!) default to creating gridless templates (`Shift` to draw a gridded template?).
+.. Maps with a grid will default to cell-filling templates (`Meta` to turn off snap-to-grid?).
+.. What to do when a gridless map adds a grid, or vice versa?
+. 🔲 Some implementation details will need to be worked out:
+.. The MapTool server will need to deliver plugin code to clients, not unlike how Add-ons currently work.
++
+MapTool already implements the `cp://` URLStreamHandler for accessing resources that are in the (local) CLASSPATH.
+What if that could be extended to include the server?
+That would delay the download until such time as the toolbar is accessed, but a background MapTool thread could begin loading tools as soon as the main campaign is done loading and bandwidth is available.
+
+.. GM will choose the toolbar options for their campaign.
++
+Will users have their own "local" configuration as well?  Opinions, please! ;)
+
+.. Drawings and templates should be sent to clients in real-time.
+.. The player name should appear at the origin of the template, just as it does when moving a token.
 
 == Class Diagrams ==
 
@@ -41,42 +65,49 @@ It's critical that the typical undo ability work properly in this regard.
 The obvious undo/redo design would be to implement the _Command_ pattern and keep a stack of those objects.
 So while undo/redo isn't explicitly discussed herein (yet), keep in mind that the completion of any given tool should generate a _Command_ object that is pushed onto a stack that MapTool is maintaining.
 
+// When we're executing `asciidoc` locally, include the PlantUML stuff.
+// When we're displaying it on GitHub, refer to the prepared images.
+ifndef::PLANTUML[]
+image::toolbar-overview[Overview]
+endif::PLANTUML[]
+ifdef::PLANTUML[]
 [plantuml, toolbar-overview]
 ....
 title "Toolbar Overview"
 
 interface ToolPlugin extends Bean {
-    +start(): void
+    +start(l: Layer, z: Zone, g: Grid, t: Token = null): void
+    +clone(): ToolPlugin
     ..Static Methods..
     + {static} _registerShortcuts(keys: Map<String, Function>): void
     + {static} _registerMouseListeners(): void
     + {static} _registerKeyListeners(): void
+    other functions that interact with ""MapToolHook""...
 }
 
 note left of ToolPlugin::start
-  delegates parts of the initialization to
-  other methods so that pieces of the startup
-  can be overridden without overriding everything
+  delegates parts of the initialization to other methods
+  (the ""_register*()"" methods) so that pieces of the
+  startup can be overridden without overriding everything
 end note
 
 class PointerTool implements ToolPlugin {
-    +start(): void
-    ..Implementation..
-    #registerShortcuts(keys: Map<String, Function>): void
-    #registerMouseListeners(): void
-    #registerKeyListeners(): void
+    +start(l: Layer, z: Zone, g: Grid, t: Token = null): void
 }
 
 class MeasuringTool extends PointerTool {
+    +start(l: Layer, z: Zone, g: Grid, t: Token = null): void
 }
 
 interface MapToolHook {
     +getInstance(): MapToolHook
     +addEventListener(tool: ToolPlugin, ev: Event): void
+    +fireEvent(tool: ToolPlugin, ev: Event): void
 }
 
 ToolPlugin -- MapToolHook : uses
 ....
+endif::PLANTUML[]
 
 The diagrams below show how an actual implementation will likely be
 structured.
@@ -102,6 +133,10 @@ When templates are added automatically to a group, if the user has selected the 
 In other words, selecting a group means new updates automatically appear.
 If individual templates are added to the toolbar, when other templates within that template group are updated, they will not automatically be added to the toolbar.
 
+ifndef::PLANTUML[]
+image::toolbar-drawings[Drawing Package]
+endif::PLANTUML[]
+ifdef::PLANTUML[]
 [plantuml, toolbar-drawings]
 ....
 title "Toolbar - Drawing"
@@ -125,7 +160,7 @@ package Utils {
 
 package Drawing {
     class DrawingTool implements .ToolPlugin {
-        +start(): void
+        +start(l: Layer, z: Zone, g: Grid, t: Token = null): void
         ..Palette-related Methods..
         #showFillPicker(): PenType
         #showStrokePicker(): PenType
@@ -159,6 +194,7 @@ package Drawing {
     }
 }
 ....
+endif::PLANTUML[]
 
 The idea is that any new plugins that want to implementation a new type of `Drawing` will create their own "implementation" component which subclasses `DrawingTool`.
 It's likely that all drawings that support a particular type of map will be in a single implementation (for example, forest scenes might all be in one component).
@@ -168,6 +204,10 @@ It is not required that all classes in an implementation component be directly
 inherited from `DrawingTool`, though.
 It's certainly possible (and even likely) for there to be one or more abstract classes within the implementation component that actual implementation classes would subclass.
 
+ifndef::PLANTUML[]
+image::toolbar-templates[Template Package]
+endif::PLANTUML[]
+ifdef::PLANTUML[]
 [plantuml, toolbar-templates]
 ....
 title "Toolbar - Template"
@@ -228,6 +268,7 @@ package Template {
     end note
 }
 ....
+endif::PLANTUML[]
 
 The `Template` component works analagous to how the `Drawing` component works.
 It does have additional methods, as it needs to declare which game system the template is designed for, along with tooltip hints and so on.

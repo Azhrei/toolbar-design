@@ -1,5 +1,5 @@
 ADOC = $(wildcard *.adoc)
-ADOC_OPTS = $(A) -b html5
+ADOC_OPTS = $(A) -b html5 -a PLANTUML
 MD = $(wildcard *.md)
 MD_OPTS = $(M)
 
